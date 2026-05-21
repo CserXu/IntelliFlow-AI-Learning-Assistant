@@ -1,59 +1,79 @@
 # IntelliFlow AI 智能学习助手
 
-IntelliFlow 是一个基于 **Multi-Agent Workflow** 的 AI 学习路线生成系统。用户输入学习目标、当前基础和学习周期后，系统会通过多个 Agent 协作完成学习目标解析、阶段规划、网页资源检索、Markdown 路线生成和后续修订。
+## 项目简介
 
-这个项目不是一个简单的 ChatGPT 聊天壳，而是将 LLM、LangGraph 工作流、Tavily Search 和 FastAPI 接口组合起来，构建了一个面向学习规划场景的 Search Augmented Generation 应用。
+IntelliFlow 是一个基于 **Multi-Agent Workflow** 的 AI 学习路线生成系统。用户输入学习目标、当前基础和学习周期后，系统会通过多个 Agent 协作完成目标解析、学习阶段规划、网页资源检索、Markdown 路线生成、结果页问答和路线修订。
 
-## 核心功能
+项目重点不是通用聊天，而是将 **LangGraph Workflow Orchestration**、**Tavily Search**、**Search Augmented Generation** 和 **FastAPI API Design** 组合到一个清晰的学习规划场景中。
 
-- 根据学习目标、基础水平、学习周期生成结构化 Markdown 学习路线。
-- 使用 LangGraph 编排 `Planner -> Researcher -> Writer` 主流程。
-- 使用 Tavily Search 检索学习资源，并将搜索结果整理到学习路线中。
-- 提供结果页 Chat Assistant，支持围绕当前学习路线继续提问。
-- 支持对已有学习路线进行二次修订，将聊天中有价值的链接、课程、项目建议整合回 Markdown。
-- 提供 FastAPI 接口和简单 Web UI，方便本地运行与接口调试。
-- 在 OpenAI 或 Tavily 配置缺失时保留 fallback 输出，保证基础流程可运行。
-
-## Agent 分工
-
-| 模块 | 文件 | 作用 |
-| --- | --- | --- |
-| Planner Agent | `app/agents/planner.py` | 解析用户学习目标、基础水平和周期，拆解学习阶段、模块和执行步骤。 |
-| Researcher Agent | `app/agents/researcher.py` | 从 Planner 输出中提取主题，调用 Tavily Search 获取学习资源，并整理推荐资料、官方文档方向、实践项目方向和复习重点。 |
-| Writer Agent | `app/agents/writer.py` | 整合规划结果和搜索/研究结果，生成最终 Markdown 学习路线。 |
-| Reviser Agent | `app/agents/reviser.py` | 根据当前 Markdown、聊天记录和用户修订要求，对学习路线进行二次优化。 |
-| Chat Assistant | `app/agents/chat_assistant.py` | 在结果页围绕当前学习路线回答问题；当问题包含“链接、教程、官方、GitHub、视频”等搜索意图时，会调用 Tavily 搜索。 |
-
-主工作流由 `app/core/workflow.py` 使用 LangGraph 编排：
+核心流程：
 
 ```text
 User Input
-   |
-   v
-Planner Agent
-   |
-   v
-Researcher Agent + Tavily Search
-   |
-   v
-Writer Agent
-   |
-   v
-Markdown Learning Plan
+  -> Planner Agent
+  -> Researcher Agent + Tavily Search
+  -> Writer Agent
+  -> Markdown Learning Plan
+  -> Reviser Agent
+  -> Chat Assistant
 ```
 
-`Reviser Agent` 和 `Chat Assistant` 不在主生成链路中，而是在结果页生成完成后，通过独立接口继续提供问答和路线修订能力。
+## Demo
+
+![Home Page](./assets/demo.png)
+
+首页用于输入学习目标、当前水平和学习周期，并展示 Planner / Researcher / Writer Agent 的执行状态。
+
+## Multi-Agent Workflow
+
+![Workflow](./assets/demo1.png)
+
+主生成流程由 LangGraph 编排，按照 `Planner -> Researcher -> Writer` 的顺序执行。页面会展示 Agent 状态切换，便于观察 workflow orchestration 的执行过程。
+
+## Result Page
+
+![Result](./assets/demo2.png)
+
+结果页展示 Markdown 学习路线、Planner / Researcher 输出、输出文件路径，并提供 Chat Assistant 和学习路线修订入口。
+
+## 核心功能
+
+- 输入学习目标、基础水平和学习周期，生成结构化 Markdown 学习路线。
+- 使用 LangGraph 编排多 Agent 主流程。
+- Researcher Agent 调用 Tavily Search 检索学习资源，并整理为推荐资料和实践方向。
+- Chat Assistant 支持围绕当前学习路线继续提问；资源类问题会尝试触发 Tavily Search。
+- Reviser Agent 可根据聊天记录和用户修订要求更新学习路线。
+- FastAPI 提供 `/generate-plan`、`/chat`、`/revise-plan` 接口。
+- OpenAI 或 Tavily 配置缺失时保留 fallback 逻辑，方便本地开发和演示。
+
+## Agent 分工
+
+| Agent / Module | 文件 | 职责 |
+| --- | --- | --- |
+| Planner Agent | `app/agents/planner.py` | 解析学习目标、基础水平和周期，拆解学习阶段、模块和执行步骤。 |
+| Researcher Agent | `app/agents/researcher.py` | 提取学习主题，调用 Tavily Search，整理推荐资料、官方文档方向、实践项目方向和复习重点。 |
+| Writer Agent | `app/agents/writer.py` | 整合 Planner 和 Researcher 输出，生成 Markdown 学习路线。 |
+| Reviser Agent | `app/agents/reviser.py` | 根据当前 Markdown、聊天记录和修订要求，对学习路线做二次优化。 |
+| Chat Assistant | `app/agents/chat_assistant.py` | 基于当前学习路线回答问题，并在资源类问题中调用 Tavily Search。 |
+
+主工作流在 `app/core/workflow.py` 中定义，当前主链路为：
+
+```text
+START -> planner -> researcher -> writer -> END
+```
+
+`Reviser Agent` 与 `Chat Assistant` 通过独立 API 在结果页阶段使用，不属于主生成链路。
 
 ## 技术栈
 
 - Python 3.10+
-- FastAPI：后端 API 与 Web 服务
-- LangGraph：多 Agent 工作流编排
-- OpenAI SDK：LLM 调用封装
-- Tavily Search API：网页搜索与资源增强
-- Pydantic：请求与响应数据模型
-- Jinja2 + 原生 HTML/CSS/JavaScript：本地 Web UI
-- Markdown：学习路线输出格式
+- FastAPI
+- LangGraph
+- OpenAI SDK
+- Tavily Search API
+- Pydantic
+- Jinja2 + 原生 HTML / CSS / JavaScript
+- Markdown
 
 ## 项目结构
 
@@ -61,27 +81,31 @@ Markdown Learning Plan
 IntelliFlow/
 ├── app/
 │   ├── agents/
-│   │   ├── chat_assistant.py    # 结果页问答 Assistant
-│   │   ├── planner.py           # 学习目标解析与阶段拆解
-│   │   ├── researcher.py        # Tavily 搜索结果整理
-│   │   ├── reviser.py           # 学习路线二次修订
-│   │   └── writer.py            # Markdown 学习路线生成
+│   │   ├── chat_assistant.py
+│   │   ├── planner.py
+│   │   ├── researcher.py
+│   │   ├── reviser.py
+│   │   └── writer.py
 │   ├── api/
-│   │   └── routes.py            # FastAPI 路由
+│   │   └── routes.py
 │   ├── core/
-│   │   ├── llm.py               # OpenAI 调用封装与 fallback
-│   │   └── workflow.py          # LangGraph 工作流定义
+│   │   ├── llm.py
+│   │   └── workflow.py
 │   ├── models/
-│   │   └── schemas.py           # Pydantic 请求/响应模型
+│   │   └── schemas.py
 │   ├── templates/
-│   │   ├── index.html           # 输入页
-│   │   └── result.html          # 结果页、Chat、路线修订
+│   │   ├── index.html
+│   │   └── result.html
 │   ├── tools/
-│   │   ├── chat_web_search.py   # Chat Assistant 使用的 Tavily 搜索
-│   │   └── web_search.py        # Researcher 使用的 Tavily 搜索
-│   └── main.py                  # FastAPI 应用入口
-├── outputs/                     # 本地生成的 Markdown 输出，建议不提交
-├── .env.example                 # 环境变量示例
+│   │   ├── chat_web_search.py
+│   │   └── web_search.py
+│   └── main.py
+├── assets/
+│   ├── demo.png
+│   ├── demo1.png
+│   └── demo2.png
+├── outputs/
+├── .env.example
 ├── .gitignore
 ├── requirements.txt
 └── README.md
@@ -89,44 +113,32 @@ IntelliFlow/
 
 ## 本地运行
 
-### 1. 克隆项目并进入目录
-
-```bash
-git clone <your-repo-url>
-cd IntelliFlow
-```
-
-### 2. 创建并激活虚拟环境
-
-Windows PowerShell：
-
-```powershell
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-```
-
-macOS / Linux：
+创建虚拟环境并安装依赖：
 
 ```bash
 python -m venv venv
-source venv/bin/activate
-```
-
-### 3. 安装依赖
-
-```bash
 pip install -r requirements.txt
 ```
 
-### 4. 配置环境变量
+Windows PowerShell 激活虚拟环境：
 
-复制 `.env.example` 为 `.env`：
+```powershell
+.\venv\Scripts\Activate.ps1
+```
+
+macOS / Linux 激活虚拟环境：
+
+```bash
+source venv/bin/activate
+```
+
+复制环境变量文件：
 
 ```bash
 cp .env.example .env
 ```
 
-Windows PowerShell 可以使用：
+Windows PowerShell：
 
 ```powershell
 Copy-Item .env.example .env
@@ -141,24 +153,20 @@ OPENAI_MODEL=gpt-4o-mini
 TAVILY_API_KEY=your_tavily_api_key_here
 ```
 
-说明：
-
-- `OPENAI_API_KEY` 缺失或调用失败时，系统会返回本地 fallback 模拟内容。
-- `TAVILY_API_KEY` 缺失或调用失败时，Researcher 会回退到预设资料建议，不会中断主流程。
-- `.env` 不应提交到 GitHub。
-
-### 5. 启动服务
+启动 FastAPI 服务：
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-启动后可访问：
+访问地址：
 
-- Web UI：`http://127.0.0.1:8000`
-- Swagger 文档：`http://127.0.0.1:8000/docs`
+- Web UI: `http://127.0.0.1:8000`
+- Swagger Docs: `http://127.0.0.1:8000/docs`
 
-## API 使用示例
+说明：`.env`、`venv/`、`__pycache__/`、`outputs/` 已在 `.gitignore` 中排除，不建议提交到 GitHub。
+
+## API 示例
 
 ### 生成学习路线
 
@@ -170,7 +178,7 @@ curl -X POST "http://127.0.0.1:8000/generate-plan" \
   -d "{\"goal\":\"学习 Redis\",\"level\":\"零基础\",\"duration\":\"2周\"}"
 ```
 
-响应结构：
+返回示例：
 
 ```json
 {
@@ -181,7 +189,7 @@ curl -X POST "http://127.0.0.1:8000/generate-plan" \
 }
 ```
 
-### Chat Assistant 问答
+### Chat Assistant
 
 `POST /chat`
 
@@ -191,15 +199,19 @@ curl -X POST "http://127.0.0.1:8000/chat" \
   -d "{\"question\":\"推荐几个 Redis 官方文档和教程链接\",\"context\":\"# 学习路线：学习 Redis...\"}"
 ```
 
-响应结构：
+如果真实调用 Tavily 并获得非 fallback 搜索结果，回答前会带有：
 
-```json
-{
-  "answer": "[Web Search Enabled]\n我根据当前学习路线检索到这些网页结果..."
-}
+```text
+[Web Search Enabled]
 ```
 
-当 Chat Assistant 真实调用 Tavily 并获得非 fallback 搜索结果时，返回内容前会带有 `[Web Search Enabled]`，方便前端或调试时确认 Web Search 已启用。
+终端也会输出 Tavily 调试日志：
+
+```text
+[TAVILY SEARCH]
+query=...
+response=...
+```
 
 ### 修订学习路线
 
@@ -211,7 +223,7 @@ curl -X POST "http://127.0.0.1:8000/revise-plan" \
   -d "{\"current_markdown\":\"# 学习路线：学习 Redis...\",\"chat_history\":[{\"role\":\"user\",\"content\":\"推荐 Redis 官方文档\"},{\"role\":\"assistant\",\"content\":\"https://redis.io/docs/latest/\"}],\"instruction\":\"把官方文档加入学习路线\",\"output_file\":\"outputs/学习_Redis_plan.md\"}"
 ```
 
-响应结构：
+返回示例：
 
 ```json
 {
@@ -220,19 +232,7 @@ curl -X POST "http://127.0.0.1:8000/revise-plan" \
 }
 ```
 
-## 学习路线生成示例
-
-输入：
-
-```json
-{
-  "goal": "学习 Redis",
-  "level": "零基础",
-  "duration": "2周"
-}
-```
-
-可能生成的 Markdown 结构如下。实际内容会受到 LLM 输出、Tavily 搜索结果和环境变量配置影响。
+### Markdown 输出示例
 
 ```markdown
 # 学习路线：学习 Redis
@@ -243,110 +243,52 @@ curl -X POST "http://127.0.0.1:8000/revise-plan" \
 - 推荐周期：2周
 
 ## 阶段划分
-学习目标：学习 Redis
-当前水平：零基础
-周期建议：2周
-
-学习阶段拆解：
-- 阶段 1：基础理解 - 从 Redis 的核心概念、数据结构、安装和常见命令入手。
-- 阶段 2：进阶实践 - 结合缓存、过期策略、持久化和简单项目进行练习。
-
-执行步骤：
-1. 明确 Redis 的使用场景和核心概念。
-2. 完成本地环境安装与基本命令练习。
-3. 使用 Redis 实现一个小型缓存或计数器案例。
+- 阶段 1：基础理解 - 学习 Redis 核心概念、数据结构、安装和常见命令。
+- 阶段 2：进阶实践 - 结合缓存、过期策略、持久化和小项目进行练习。
 
 ## 推荐资料与研究方向
-推荐资料类型：
 - 官方文档与入门指南
 - 教程视频与实战博客
 - 代码示例与小项目实践
 
-官方文档方向：
-- Redis 官方文档
-- Redis 命令参考
-
-实践项目方向：
-- 使用 Redis 缓存接口查询结果。
-- 实现简单排行榜、计数器或 Session 存储案例。
-
 ## 每周/每日任务建议
-- 第 1 周：理解概念、安装环境、练习常用数据结构和命令。
-- 第 2 周：完成一个小项目，并复盘缓存设计、过期策略和常见问题。
+- 第 1 周：完成基础概念、环境安装和常用命令练习。
+- 第 2 周：完成一个缓存或计数器小项目，并复盘常见问题。
 
 ## 实践项目建议
-- 构建一个小型项目，巩固 Redis 的读写、缓存和过期时间设置。
+- 使用 Redis 实现一个简单缓存模块或排行榜案例。
 
 ## 复习重点
-- Redis 数据结构与典型命令。
-- 缓存穿透、缓存击穿、缓存雪崩等常见问题。
-- 持久化、过期策略和基础性能排查思路。
+- Redis 数据结构、典型命令、缓存问题、持久化和基础排查思路。
 ```
-
-## Web Search 调试
-
-Tavily 调用位于：
-
-- `app/tools/web_search.py`：主流程 Researcher 使用。
-- `app/tools/chat_web_search.py`：Chat Assistant 在资源类问题中使用。
-
-服务运行后，终端会输出搜索日志：
-
-```text
-[TAVILY SEARCH]
-query=...
-response=...
-```
-
-如果缺少 API Key：
-
-```text
-[TAVILY ERROR] Missing API Key
-```
-
-如果调用失败：
-
-```text
-[TAVILY ERROR] ...
-```
-
-可以通过以下方式确认 Tavily 是否真实工作：
-
-1. `.env` 中配置有效的 `TAVILY_API_KEY`。
-2. 启动 FastAPI 服务。
-3. 在首页生成学习路线，或在结果页提问“推荐官方文档、GitHub 项目或教程链接”。
-4. 查看终端是否出现 `[TAVILY SEARCH]` 日志。
-5. 查看 Tavily Dashboard 的 API Usage 是否增加。
 
 ## 项目亮点
 
-- **Multi-Agent Workflow**：使用 LangGraph 将学习规划拆成 Planner、Researcher、Writer 三个明确阶段，避免把所有逻辑塞进单次提示词。
-- **Tool Calling / 外部工具接入**：Researcher 和 Chat Assistant 通过 Tavily Search 获取外部网页信息，增强学习资源推荐的实时性。
-- **Search Augmented Generation**：先搜索，再将搜索结果交给 LLM 摘要和整理，降低纯模型回答带来的信息过时问题。
-- **结构化输出**：最终产物是 Markdown 学习路线，包含目标说明、阶段划分、推荐资料、任务建议、实践项目和复习重点。
-- **可降级运行**：OpenAI 或 Tavily 未配置时，系统保留 fallback 输出，方便本地演示和开发调试。
-- **工程化接口设计**：使用 FastAPI + Pydantic 定义清晰的生成、问答、修订接口，便于前端或其他服务集成。
+- **Multi-Agent Workflow**：将学习路线生成拆分为 Planner、Researcher、Writer 等职责明确的模块。
+- **LangGraph Workflow Orchestration**：使用图结构编排 Agent 节点，主流程清晰可追踪。
+- **Tavily Search Integration**：通过 Tavily Search 获取网页学习资源，支持 Search Augmented Generation。
+- **Markdown Structured Output**：最终输出适合阅读、下载和二次修订的 Markdown 学习路线。
+- **FastAPI API Design**：提供清晰的生成、问答和修订接口，便于调试和扩展。
+- **Fallback Mechanism**：OpenAI 或 Tavily 未配置时仍可返回降级结果，降低本地运行门槛。
 
 ## 当前边界
 
-以下能力当前没有实现，因此不在项目能力中宣传：
+当前项目保持在学习路线生成和结果页交互范围内，以下能力尚未实现：
 
-- 没有用户登录或权限系统。
-- 没有数据库持久化，生成结果目前保存到本地 `outputs/` 目录。
-- 没有长期记忆或跨会话用户画像。
-- 没有学习进度追踪、打卡或任务完成状态管理。
-- 没有对搜索资源做复杂去重、可信度评分或排序。
+- 没有用户登录、权限系统或多用户隔离。
+- 没有数据库持久化，生成结果保存到本地 `outputs/`。
+- 没有长期记忆、用户画像或跨会话个性化。
+- 没有学习进度追踪、任务打卡或完成状态管理。
+- 没有对搜索资源做复杂去重、质量评分或可信度排序。
 - 没有后台任务队列，接口调用为同步执行。
 
 ## 后续优化方向
 
-这些是 future work，不代表当前已经实现：
+以下内容属于 future work，不代表当前已经实现：
 
-- 引入数据库保存用户学习路线、聊天记录和修订历史。
-- 增加学习进度追踪、任务状态和阶段复盘功能。
-- 对 Tavily 搜索结果做更细粒度的去重、来源分类和质量评分。
-- 将 Reviser Agent 接入主工作流或增加可配置的审核节点。
-- 支持异步任务队列，优化长耗时生成请求的体验。
+- 接入数据库，保存学习路线、聊天记录和修订历史。
+- 增加学习进度追踪、阶段复盘和任务状态管理。
+- 对 Tavily 搜索结果进行来源分类、去重和质量评分。
 - 增加单元测试和端到端测试，覆盖 Agent fallback、API schema 和搜索调用逻辑。
-- 支持 Docker 部署和环境配置模板。
-
+- 引入异步任务队列，改善长耗时生成请求体验。
+- 增加 Docker 部署配置和更完整的环境模板。
