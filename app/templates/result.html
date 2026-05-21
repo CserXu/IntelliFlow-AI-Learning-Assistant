@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IntelliFlow 结果页</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: #eef2ff;
+      color: #0f172a;
+    }
+    button, textarea { font: inherit; }
+    .container {
+      width: min(1320px, calc(100% - 32px));
+      margin: 32px auto;
+      padding: 32px;
+      background: #ffffff;
+      border-radius: 24px;
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+    }
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: center;
+      padding-bottom: 22px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .header h1 { margin: 0; font-size: 2.15rem; line-height: 1.15; }
+    .header p { margin: 10px 0 0; color: #475569; max-width: 720px; line-height: 1.6; }
+    .page-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 410px;
+      gap: 24px;
+      align-items: start;
+      margin-top: 24px;
+    }
+    .section { margin-top: 22px; }
+    .section:first-child { margin-top: 0; }
+    .section h2 { margin: 0 0 14px; font-size: 1.12rem; }
+    .card {
+      padding: 22px;
+      border-radius: 16px;
+      border: 1px solid #e2e8f0;
+      background: #f8fbff;
+    }
+    .card pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 0;
+      font-size: 0.95rem;
+      line-height: 1.65;
+      color: #1e293b;
+    }
+    .summary-item { margin-bottom: 14px; line-height: 1.6; }
+    .summary-item:last-child { margin-bottom: 0; }
+    .summary-item strong { display: inline-block; min-width: 120px; }
+    .button-row { display: flex; flex-wrap: wrap; gap: 12px; }
+    .button {
+      padding: 12px 18px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+    .button:hover:not(:disabled) { background: #1d4ed8; transform: translateY(-1px); }
+    .button:disabled { background: #94a3b8; cursor: not-allowed; transform: none; }
+    .warning { margin: 0; color: #7c3aed; line-height: 1.7; }
+    .chat-panel {
+      position: sticky;
+      top: 24px;
+      display: flex;
+      flex-direction: column;
+      min-height: 620px;
+      max-height: calc(100vh - 64px);
+      border: 1px solid #dbe3ef;
+      border-radius: 18px;
+      background: #ffffff;
+      overflow: hidden;
+      box-shadow: 0 16px 38px rgba(15, 23, 42, 0.07);
+    }
+    .chat-header {
+      padding: 18px 20px;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }
+    .chat-header h2 { margin: 0; font-size: 1.12rem; }
+    .chat-header p { margin: 8px 0 0; color: #64748b; font-size: 0.92rem; line-height: 1.5; }
+    .chat-messages {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+      padding: 18px;
+      overflow-y: auto;
+      background: #f8fbff;
+    }
+    .revise-panel {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+      border-top: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }
+    .revise-input {
+      width: 100%;
+      min-height: 64px;
+      max-height: 120px;
+      resize: vertical;
+      padding: 11px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      color: #0f172a;
+      line-height: 1.45;
+      outline: none;
+      background: #ffffff;
+    }
+    .revise-input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+    }
+    .revise-button {
+      width: 100%;
+      min-height: 44px;
+      border: none;
+      border-radius: 12px;
+      background: #2563eb;
+      color: #ffffff;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .revise-button:hover:not(:disabled) { background: #1d4ed8; }
+    .revise-button:disabled { background: #94a3b8; cursor: not-allowed; }
+    .message {
+      display: flex;
+      width: 100%;
+    }
+    .message.user { justify-content: flex-end; }
+    .message.assistant { justify-content: flex-start; }
+    .bubble {
+      max-width: 86%;
+      padding: 12px 14px;
+      border-radius: 16px;
+      font-size: 0.94rem;
+      line-height: 1.65;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .message.user .bubble {
+      color: #ffffff;
+      background: #2563eb;
+      border-bottom-right-radius: 5px;
+    }
+    .message.assistant .bubble {
+      color: #1e293b;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-bottom-left-radius: 5px;
+    }
+    .message.system .bubble {
+      width: 100%;
+      max-width: 100%;
+      color: #64748b;
+      background: #eef2ff;
+      border: 1px solid #dbeafe;
+      text-align: center;
+    }
+    .typing {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .typing span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #64748b;
+      animation: pulse 1s infinite ease-in-out;
+    }
+    .typing span:nth-child(2) { animation-delay: 0.15s; }
+    .typing span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes pulse {
+      0%, 80%, 100% { opacity: 0.35; transform: translateY(0); }
+      40% { opacity: 1; transform: translateY(-3px); }
+    }
+    .chat-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      padding: 14px;
+      border-top: 1px solid #e2e8f0;
+      background: #ffffff;
+    }
+    .chat-input {
+      width: 100%;
+      min-height: 48px;
+      max-height: 130px;
+      resize: vertical;
+      padding: 12px 13px;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      color: #0f172a;
+      outline: none;
+      line-height: 1.45;
+    }
+    .chat-input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+    }
+    .send-button {
+      align-self: end;
+      min-width: 82px;
+      height: 48px;
+      border: none;
+      border-radius: 12px;
+      background: #0f172a;
+      color: #ffffff;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .send-button:hover:not(:disabled) { background: #1e293b; }
+    .send-button:disabled { background: #94a3b8; cursor: not-allowed; }
+
+    @media (max-width: 980px) {
+      .container { padding: 22px; }
+      .page-layout { grid-template-columns: 1fr; }
+      .chat-panel {
+        position: static;
+        min-height: 540px;
+        max-height: none;
+      }
+    }
+    @media (max-width: 560px) {
+      .container { width: min(100% - 20px, 1320px); margin: 10px auto; padding: 16px; border-radius: 18px; }
+      .header h1 { font-size: 1.75rem; }
+      .button-row, .button { width: 100%; }
+      .chat-form { grid-template-columns: 1fr; }
+      .send-button { width: 100%; }
+      .bubble { max-width: 94%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>生成结果</h1>
+        <p>这里展示 Planner、Researcher 与 Writer Agent 的执行结果，以及最终生成的 Markdown 学习路线。</p>
+      </div>
+      <div class="button-row">
+        <button class="button" id="backButton">返回首页</button>
+        <button class="button" id="downloadButton">下载 Markdown</button>
+      </div>
+    </div>
+
+    <div class="page-layout">
+      <main>
+        <div id="resultContent">
+          <div class="section card">
+            <div class="summary-item"><strong>学习目标：</strong><span id="goalValue">-</span></div>
+            <div class="summary-item"><strong>输出文件：</strong><span id="outputFile">-</span></div>
+          </div>
+          <div class="section card">
+            <h2>Planner Agent 输出</h2>
+            <pre id="plannerOutput">暂无数据</pre>
+          </div>
+          <div class="section card">
+            <h2>Researcher Agent 输出</h2>
+            <pre id="researcherOutput">暂无数据</pre>
+          </div>
+          <div class="section card">
+            <h2>最终 Markdown 学习路线</h2>
+            <pre id="markdownOutput">暂无数据</pre>
+          </div>
+        </div>
+
+        <div id="emptyState" class="section card" style="display:none;">
+          <p class="warning">未检测到生成结果。请先返回首页并运行一次生成流程。</p>
+        </div>
+      </main>
+
+      <aside class="chat-panel" aria-label="AI 学习问答 Assistant">
+        <div class="chat-header">
+          <h2>AI 学习问答 Assistant</h2>
+          <p id="chatHint">基于当前学习路线提问，我会结合 Markdown 内容回答。</p>
+        </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="revise-panel">
+          <textarea class="revise-input" id="reviseInstruction" rows="2">把刚才推荐的资料和学习建议加入学习路线</textarea>
+          <button class="revise-button" id="reviseButton" type="button">更新学习路线</button>
+        </div>
+        <form class="chat-form" id="chatForm">
+          <textarea class="chat-input" id="chatInput" rows="2" placeholder="围绕当前学习路线提问..."></textarea>
+          <button class="send-button" id="sendButton" type="submit">Send</button>
+        </form>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const backButton = document.getElementById('backButton');
+    const downloadButton = document.getElementById('downloadButton');
+    const chatForm = document.getElementById('chatForm');
+    const chatInput = document.getElementById('chatInput');
+    const chatMessages = document.getElementById('chatMessages');
+    const chatHint = document.getElementById('chatHint');
+    const sendButton = document.getElementById('sendButton');
+    const reviseInstruction = document.getElementById('reviseInstruction');
+    const reviseButton = document.getElementById('reviseButton');
+    const resultDataKey = 'intelliflow_result';
+    const stored = localStorage.getItem(resultDataKey);
+    let currentMarkdown = '';
+    let currentOutputFile = '';
+    let currentResultData = null;
+    const chatHistory = [];
+    let chatBusy = false;
+    let reviseBusy = false;
+
+    function appendMessage(role, content, record = false) {
+      const row = document.createElement('div');
+      row.className = `message ${role}`;
+
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.textContent = content;
+
+      row.appendChild(bubble);
+      chatMessages.appendChild(row);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      if (record && role !== 'system') {
+        chatHistory.push({ role, content });
+      }
+      return row;
+    }
+
+    function appendLoadingMessage() {
+      const row = document.createElement('div');
+      row.className = 'message assistant';
+      row.innerHTML = '<div class="bubble"><span class="typing"><span></span><span></span><span></span></span></div>';
+      chatMessages.appendChild(row);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      return row;
+    }
+
+    function setChatEnabled(enabled, message) {
+      chatInput.disabled = !enabled;
+      sendButton.disabled = !enabled;
+      reviseInstruction.disabled = !enabled;
+      reviseButton.disabled = !enabled;
+      if (message) {
+        chatHint.textContent = message;
+        appendMessage('system', message);
+      }
+    }
+
+    function showEmptyState() {
+      document.getElementById('resultContent').style.display = 'none';
+      document.getElementById('emptyState').style.display = 'block';
+      downloadButton.disabled = true;
+      setChatEnabled(false, '请先生成学习路线');
+    }
+
+    if (!stored) {
+      showEmptyState();
+    } else {
+      const data = JSON.parse(stored);
+      currentResultData = data;
+      currentMarkdown = data.final_markdown || '';
+      currentOutputFile = data.output_file || '';
+      document.getElementById('goalValue').textContent = data.goal || '-';
+      document.getElementById('outputFile').textContent = currentOutputFile || '-';
+      document.getElementById('plannerOutput').textContent = data.planner_result || '暂无数据';
+      document.getElementById('researcherOutput').textContent = data.researcher_result || '暂无数据';
+      document.getElementById('markdownOutput').textContent = currentMarkdown || '暂无数据';
+      downloadButton.disabled = !currentMarkdown;
+
+      if (currentMarkdown) {
+        setChatEnabled(true);
+        appendMessage('assistant', '你好，我已经读取当前学习路线。你可以问我如何安排下一步、哪些资料优先看，或怎样调整学习节奏。');
+      } else {
+        setChatEnabled(false, '请先生成学习路线');
+      }
+    }
+
+    backButton.addEventListener('click', () => {
+      window.location.href = '/';
+    });
+
+    downloadButton.addEventListener('click', () => {
+      const content = document.getElementById('markdownOutput').textContent;
+      if (!content || content === '暂无数据') return;
+      const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'intelliflow_study_plan.md';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    chatInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        chatForm.requestSubmit();
+      }
+    });
+
+    chatForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const question = chatInput.value.trim();
+      if (!currentMarkdown) {
+        appendMessage('system', '请先生成学习路线');
+        return;
+      }
+      if (!question || chatBusy) return;
+
+      chatBusy = true;
+      chatInput.value = '';
+      chatInput.disabled = true;
+      sendButton.disabled = true;
+      appendMessage('user', question, true);
+      const loadingMessage = appendLoadingMessage();
+
+      try {
+        const response = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            question,
+            context: currentMarkdown,
+          }),
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || '聊天请求失败');
+        }
+
+        const data = await response.json();
+        loadingMessage.remove();
+        appendMessage('assistant', data.answer || '暂时没有拿到回答，请稍后再试。', true);
+      } catch (error) {
+        loadingMessage.remove();
+        appendMessage('assistant', '请求失败：' + (error.message || error), true);
+      } finally {
+        chatBusy = false;
+        chatInput.disabled = false;
+        sendButton.disabled = false;
+        chatInput.focus();
+      }
+    });
+
+    reviseButton.addEventListener('click', async () => {
+      if (!currentMarkdown) {
+        appendMessage('system', '请先生成学习路线');
+        return;
+      }
+      if (chatHistory.length === 0) {
+        appendMessage('system', '请先在 Chat 中获得补充资料，再更新学习路线。');
+        return;
+      }
+      if (reviseBusy) return;
+
+      const instruction = reviseInstruction.value.trim() || '把聊天中的有效补充资料整合进学习路线';
+      reviseBusy = true;
+      reviseButton.disabled = true;
+      reviseInstruction.disabled = true;
+      chatInput.disabled = true;
+      sendButton.disabled = true;
+      const originalText = reviseButton.textContent;
+      reviseButton.textContent = '正在更新路线...';
+      appendMessage('system', '正在更新路线...');
+
+      try {
+        const response = await fetch('/revise-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            current_markdown: currentMarkdown,
+            chat_history: chatHistory,
+            instruction,
+            output_file: currentOutputFile,
+          }),
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || '更新学习路线失败');
+        }
+
+        const data = await response.json();
+        currentMarkdown = data.revised_markdown || currentMarkdown;
+        currentOutputFile = data.output_file || currentOutputFile;
+        document.getElementById('markdownOutput').textContent = currentMarkdown;
+        document.getElementById('outputFile').textContent = currentOutputFile || '-';
+        downloadButton.disabled = !currentMarkdown;
+
+        currentResultData = {
+          ...(currentResultData || {}),
+          final_markdown: currentMarkdown,
+          output_file: currentOutputFile,
+        };
+        localStorage.setItem(resultDataKey, JSON.stringify(currentResultData));
+        appendMessage('assistant', `学习路线已更新，并保存到：${currentOutputFile}`, true);
+      } catch (error) {
+        appendMessage('assistant', '更新失败：' + (error.message || error), true);
+      } finally {
+        reviseBusy = false;
+        reviseButton.textContent = originalText;
+        reviseInstruction.disabled = false;
+        reviseButton.disabled = false;
+        chatInput.disabled = false;
+        sendButton.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

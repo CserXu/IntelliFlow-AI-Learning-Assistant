@@ -1,0 +1,33 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Local generated outputs
+outputs/
+*.log
+
+# FastAPI / tooling
+.python-version
+
+# IDE and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

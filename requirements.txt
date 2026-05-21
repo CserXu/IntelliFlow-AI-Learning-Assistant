@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+jinja2
+openai
+python-dotenv
+pydantic
+typing-extensions
+langgraph
+tavily-python
