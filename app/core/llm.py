@@ -83,6 +83,49 @@ class OpenAIClient:
 
         return self._fallback_simulation(messages)
 
+    def create_chat_completion_strict(
+        self,
+        messages: list[dict[str, str]],
+        temperature: float = 0.7,
+        model: str | None = None,
+    ) -> str:
+        """Create a chat completion and raise on API/client failures.
+
+        RAG endpoints use this method so user-facing responses never contain
+        the local fallback prompt simulation when the LLM call fails.
+        """
+        if self._mode == "new" and self._client is not None:
+            try:
+                resp = self._client.chat.completions.create(
+                    model=model or self.model,
+                    messages=messages,
+                    temperature=temperature,
+                )
+                content = self._extract_content(resp)
+            except Exception as exc:
+                raise RuntimeError(f"OpenAI chat completion failed: {exc}") from exc
+
+            if not content.strip():
+                raise RuntimeError("OpenAI chat completion returned empty content.")
+            return content.strip()
+
+        if self._mode == "legacy" and self._client is not None:
+            try:
+                resp = self._client.ChatCompletion.create(
+                    model=model or self.model,
+                    messages=messages,
+                    temperature=temperature,
+                )
+                content = self._extract_content(resp)
+            except Exception as exc:
+                raise RuntimeError(f"OpenAI chat completion failed: {exc}") from exc
+
+            if not content.strip():
+                raise RuntimeError("OpenAI chat completion returned empty content.")
+            return content.strip()
+
+        raise RuntimeError("OpenAI chat completion client is not available.")
+
     def _extract_content(self, resp: Any) -> str:
         """Try multiple strategies to extract text content from various SDK response shapes."""
         # If it's a mapping-like object

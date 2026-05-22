@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
+from app.api.rag import router as rag_router
 from app.api.routes import router
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -14,6 +15,7 @@ app = FastAPI(
     description="基于 LangGraph 的多 Agent 学习路线生成系统",
 )
 app.include_router(router)
+app.include_router(rag_router)
 
 
 @app.get("/", response_class=HTMLResponse)

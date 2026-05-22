@@ -21,6 +21,7 @@ ENV/
 
 # Local generated outputs
 outputs/
+data/
 *.log
 
 # FastAPI / tooling

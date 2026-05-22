@@ -7,3 +7,6 @@ pydantic
 typing-extensions
 langgraph
 tavily-python
+chromadb
+pypdf
+python-multipart
